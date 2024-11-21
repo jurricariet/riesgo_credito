@@ -1,0 +1,132 @@
+---
+title: "Riesgo de crédito"
+format:
+  html:
+    code-fold: true
+    code-summary: "Ver código"
+execute:
+  warning: false
+  message: false
+editor: visual
+---
+
+
+```{r }
+
+# Paquete tidyverse para manipular datos y graficar.
+
+library(tidyverse)
+```
+
+## Descripción de la base
+
+Levanto la base de excel:
+
+```{r}
+data <- readxl::read_excel('base 2024 unsam.xlsx')
+```
+
+Descripción de las variables 
+
+```{r}
+str(data)
+summary(data)
+```
+
+Convierto las variables default, fem y segmento a factor
+
+```{r}
+data <- data %>% 
+  mutate(default = as.factor(default),
+         fem = as.factor(fem),
+         segmento = as.factor(segmento))
+summary(data)
+```
+
+Distibución de las variables categóricas
+
+Default:
+
+```{r}
+table(data$default)/nrow(data)
+```
+
+fem: 
+
+```{r}
+table(data$fem)/nrow(data)
+```
+
+
+segmento:
+
+```{r}
+table(data$segmento)/nrow(data)
+```
+
+Graficamos la distribución de las variables numéricas
+
+```{r}
+data %>% 
+  pivot_longer(cols=-c(default,fem,segmento)) %>% 
+  ggplot(aes(x=value))+
+  geom_boxplot()+
+  coord_flip()+
+  facet_wrap(~name,scales='free_y')
+```
+
+Distribución de las variables fem y segmento según default: se observa que los casos de default tienen más proporción de hombres y segmentos 1 y 2.
+
+```{r}
+data %>% 
+  select(default,fem,segmento) %>% 
+  pivot_longer(cols=-c(default)) %>% 
+  ggplot(aes(x=default,fill=value))+
+  geom_bar(position="fill")+
+  facet_wrap(~name,scales='free_y')+
+  ggthemes::theme_stata()
+```
+Para las variables continuas, puede verse, por ejemplo, que la distribución de la variable **edad** está más concentrada en edades más bajas para el caso de no default.
+
+Por otra parte, la variable **saldotarj** está concentrada en valores mayores para el caso de no default.
+
+Los casos de default están concentrados en **score** bajo.
+
+También puede verse que los casos de default están concentrados en una mayor **TEM**
+
+```{r}
+data %>% 
+  pivot_longer(cols=-c(default,fem,segmento)) %>% 
+  ggplot(aes(x=value,group=default,color=default))+
+  geom_density()+
+  facet_wrap(~name,scales='free')+
+  ggthemes::theme_stata()
+```
+
+## Modelos
+
+Se evalúa en principio, un modelo **logit** para predecir el default a partir de las variables de la base.
+
+### Modelo 1: usando fem, tem, score y saldotarj
+
+```{r}
+logit_1 <- glm(default ~ tem + saldotarj +  fem + score , family = 'binomial', data = data)
+logit_1 
+summary(logit_1)
+```
+
+### Modelo 2: usando todas las variables
+
+```{r}
+logit <- glm(default ~ tem + antiglab + seguro + rci + score + hijos + saldotarj + antigbanco + edad + fem + segmento, family = 'binomial', data = data)
+
+logit
+summary(logit)
+```
+
+## Predicciones
+
+```{r}
+logit_1_pred <- predict(logit_1, newdata = data,type = 'response')
+logit_pred <- predict(logit,newdata = data,type='response')
+```
